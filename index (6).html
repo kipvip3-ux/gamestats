@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GSM Pro | Система учёта игровых серверов</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root {
+            --bg: #0f1419;
+            --sidebar: #161b22;
+            --card: #1c2128;
+            --card-hover: #252c34;
+            --elevated: #21262d;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --accent2: #a371f7;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --success: #3fb950;
+            --warning: #d29922;
+            --danger: #f85149;
+            --info: #58a6ff;
+            --border: #30363d;
+            --radius: 12px;
+            --shadow: 0 8px 24px rgba(0,0,0,0.4);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); display: flex; min-height: 100vh; }
+        .sidebar { width: 260px; background: var(--sidebar); padding: 20px 0; position: fixed; height: 100vh; overflow-y: auto; border-right: 1px solid var(--border); z-index: 100; display: flex; flex-direction: column; }
+        .logo { padding: 0 20px 24px; font-size: 1.4rem; font-weight: 700; color: var(--text); display: flex; align-items: center; gap: 10px; }
+        .logo span { color: var(--accent); }
+        .nav-item { padding: 12px 20px; cursor: pointer; display: flex; align-items: center; gap: 12px; transition: 0.15s; color: var(--text-muted); border-left: 3px solid transparent; font-weight: 500; font-size: 0.95rem; }
+        .nav-item:hover, .nav-item.active { background: rgba(88,166,255,0.08); color: var(--accent); border-left-color: var(--accent); }
+        .nav-item i { width: 18px; text-align: center; font-size: 0.95rem; }
+        .user-mini { padding: 16px 20px; border-top: 1px solid var(--border); margin-top: auto; display: flex; align-items: center; gap: 12px; cursor: pointer; }
+        .user-mini:hover { background: rgba(255,255,255,0.03); }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-weight: 600; color: #fff; font-size: 0.95rem; }
+        .main { margin-left: 260px; flex: 1; padding: 28px 36px; min-height: 100vh; background: var(--bg); }
+        .topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; flex-wrap: wrap; gap: 16px; }
+        .topbar h1 { font-size: 1.8rem; font-weight: 600; letter-spacing: -0.3px; }
+        .search-box { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; color: var(--text); width: 260px; font-size: 0.9rem; }
+        .search-box:focus { outline: none; border-color: var(--accent); }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .stat-card { background: var(--card); padding: 22px; border-radius: var(--radius); border: 1px solid var(--border); transition: all 0.2s; position: relative; }
+        .stat-card:hover { border-color: var(--accent); }
+        .stat-card .icon { position: absolute; top: 18px; right: 18px; font-size: 1.6rem; opacity: 0.15; }
+        .stat-card .value { font-size: 2.2rem; font-weight: 700; color: var(--text); line-height: 1; }
+        .stat-card .label { color: var(--text-muted); margin-top: 6px; font-size: 0.9rem; }
+        .card { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); padding: 24px; margin-bottom: 20px; }
+        .card h3 { margin-bottom: 20px; font-size: 1.25rem; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 16px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--text-muted); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        tr:hover { background: rgba(255,255,255,0.03); }
+        .status { padding: 6px 14px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; display: inline-block; }
+        .status.online { background: rgba(16,185,129,0.15); color: var(--success); }
+        .status.offline { background: rgba(239,68,68,0.15); color: var(--danger); }
+        .status.maintenance { background: rgba(245,158,11,0.15); color: var(--warning); }
+        .status.error { background: rgba(239,68,68,0.2); color: var(--danger); }
+        .status.critical { background: rgba(239,68,68,0.2); color: var(--danger); }
+        .status.warning { background: rgba(245,158,11,0.2); color: var(--warning); }
+        .status.info { background: rgba(59,130,246,0.15); color: var(--info); }
+        .btn { padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer; font-weight: 500; transition: 0.15s; display: inline-flex; align-items: center; gap: 6px; font-size: 0.9rem; }
+        .btn-primary { background: var(--accent); color: #fff; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--elevated); color: var(--text); border: 1px solid var(--border); }
+        .btn-secondary:hover { background: var(--card-hover); }
+        .btn-danger { background: var(--danger); color: #fff; }
+        .btn-danger:hover { opacity: 0.9; }
+        .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+        .server-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: 0.15s; }
+        .server-card:hover { border-color: var(--accent); }
+        .user-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 10px; transition: 0.15s; }
+        .user-card:hover { border-color: var(--accent); }
+        .alert-card { padding: 16px; border-radius: 10px; border-left: 3px solid; margin-bottom: 12px; background: var(--card); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .section { display: none; }
+        .section.active { display: block; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: var(--text-muted); font-weight: 500; font-size: 0.95rem; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.95rem; }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.15); }
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); align-items: center; justify-content: center; z-index: 1000; backdrop-filter: blur(4px); }
+        .modal.show { display: flex; }
+        .modal-content { background: var(--card); padding: 28px; border-radius: 16px; width: 520px; max-width: 94%; max-height: 90vh; overflow-y: auto; border: 1px solid var(--border); }
+        .modal-content h2 { margin-bottom: 24px; font-size: 1.5rem; }
+        .log-entry { padding: 14px 0; border-bottom: 1px solid var(--border); font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 0.9rem; display: flex; gap: 16px; align-items: flex-start; }
+        .log-entry.error { color: #fca5a5; }
+        .log-entry.warn { color: #fcd34d; }
+        .log-entry.info { color: #67e8f9; }
+        .log-time { color: var(--text-muted); min-width: 160px; flex-shrink: 0; }
+        canvas { max-height: 340px !important; }
+        .badge { background: var(--accent2); color: #fff; padding: 5px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .toast { position: fixed; bottom: 28px; right: 28px; background: var(--elevated); border: 1px solid var(--accent); padding: 16px 22px; border-radius: 14px; box-shadow: var(--shadow); z-index: 2000; animation: slideIn 0.35s; max-width: 360px; }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: none; opacity: 1; } }
+        .filters { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; align-items: center; }
+        .server-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; }
+        .server-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: 0.15s; }
+        .server-card:hover { border-color: var(--accent); }
+        .progress { height: 8px; background: #30363d; border-radius: 4px; overflow: hidden; margin: 10px 0; }
+        .progress-bar { height: 100%; background: var(--accent); border-radius: 4px; transition: width 0.3s; }
+        .user-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: flex; flex-direction: column; gap: 10px; transition: 0.15s; }
+        .user-card:hover { border-color: var(--accent); }
+        .alert-card { padding: 16px; border-radius: 10px; border-left: 3px solid; margin-bottom: 12px; background: var(--card); display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+        .profile-avatar { width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: 700; color: #fff; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+        .tab { padding: 12px 22px; cursor: pointer; color: var(--text-muted); border-bottom: 3px solid transparent; font-weight: 500; transition: 0.2s; }
+        .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab:hover { color: var(--text); }
+        .user-card { background: var(--elevated); border: 1px solid var(--border); border-radius: 16px; padding: 24px; display: flex; flex-direction: column; gap: 12px; transition: 0.2s; }
+        .user-card:hover { border-color: var(--accent); }
+        .users-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .alert-card { padding: 20px; border-radius: 14px; border-left: 4px solid; margin-bottom: 16px; background: var(--elevated); display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+        .alert-card.critical { border-left-color: var(--danger); }
+        .alert-card.warning { border-left-color: var(--warning); }
+        .alert-card.info { border-left-color: var(--info); }
+        .profile-header { display: flex; gap: 28px; align-items: center; margin-bottom: 32px; flex-wrap: wrap; }
+        .profile-avatar { width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); display: flex; align-items: center; justify-content: center; font-size: 3rem; font-weight: 800; color: #000; }
+        .config-layout { display: grid; grid-template-columns: 280px 1fr; gap: 28px; }
+        @media (max-width: 900px) { .config-layout { grid-template-columns: 1fr; } .sidebar { width: 70px; } .sidebar .nav-item span, .logo span, .user-mini div { display: none; } .main { margin-left: 70px; padding: 16px; } }
+        .template-item { padding: 14px; background: #0b0f19; border-radius: 10px; margin-bottom: 10px; cursor: pointer; border: 1px solid transparent; }
+        .template-item:hover { border-color: var(--accent); }
+        .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
+        .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.4; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo"><i class="fas fa-server"></i> <span>GSM Pro</span></div>
+        <div class="nav-item active" onclick="showSection('dashboard')"><i class="fas fa-tachometer-alt"></i> <span>Дашборд</span></div>
+        <div class="nav-item" onclick="showSection('servers')"><i class="fas fa-server"></i> <span>Серверы</span></div>
+        <div class="nav-item" onclick="showSection('games')"><i class="fas fa-gamepad"></i> <span>Игры</span></div>
+        <div class="nav-item" onclick="showSection('configs')"><i class="fas fa-cogs"></i> <span>Конфигурации</span></div>
+        <div class="nav-item" onclick="showSection('users')"><i class="fas fa-users"></i> <span>Пользователи</span></div>
+        <div class="nav-item" onclick="showSection('logs')"><i class="fas fa-list"></i> <span>Логи</span></div>
+        <div class="nav-item" onclick="showSection('monitoring')"><i class="fas fa-chart-line"></i> <span>Мониторинг</span></div>
+        <div class="nav-item" onclick="showSection('alerts')"><i class="fas fa-bell"></i> <span>Алерты</span></div>
+        <div class="nav-item" onclick="showSection('reports')"><i class="fas fa-file-alt"></i> <span>Отчёты</span></div>
+        <div class="nav-item" onclick="showSection('settings')"><i class="fas fa-sliders-h"></i> <span>Настройки</span></div>
+        <div class="nav-item" onclick="showSection('profile')"><i class="fas fa-user-circle"></i> <span>Профиль</span></div>
+        <div style="flex:1"></div>
+        <div class="user-mini" onclick="showSection('profile')">
+            <div class="avatar" id="sidebar-avatar">A</div>
+            <div>
+                <div id="sidebar-name" style="font-weight:600">admin</div>
+                <div style="font-size:0.8rem;color:var(--text-muted)">Администратор</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- Dashboard -->
+        <div id="dashboard" class="section active">
+            <div class="topbar">
+                <h1>Дашборд</h1>
+                <div class="topbar-actions">
+                    <input type="text" class="search-box" placeholder="Глобальный поиск..." id="global-search">
+                    <span style="color:var(--text-muted);font-size:0.9rem">Обновлено: <span id="now"></span></span>
+                    <button class="btn btn-secondary btn-sm" onclick="showSection('profile')"><i class="fas fa-user"></i></button>
+                </div>
+            </div>
+            <div class="stats">
+                <div class="stat-card"><i class="fas fa-server icon"></i><div class="value" id="stat-servers">0</div><div class="label">Всего серверов</div><div class="change up"><i class="fas fa-arrow-up"></i> +2 за неделю</div></div>
+                <div class="stat-card"><i class="fas fa-circle icon" style="color:var(--success)"></i><div class="value" id="stat-online">0</div><div class="label">Онлайн</div><div class="change up">98% uptime</div></div>
+                <div class="stat-card"><i class="fas fa-users icon"></i><div class="value" id="stat-players">0</div><div class="label">Игроков онлайн</div><div class="change up"><i class="fas fa-arrow-up"></i> +15%</div></div>
+                <div class="stat-card"><i class="fas fa-bell icon"></i><div class="value" id="stat-alerts">0</div><div class="label">Активных алертов</div><div class="change down">3 критических</div></div>
+            </div>
+            <div style="display:grid; grid-template-columns: 2fr 1fr; gap: 28px; margin-bottom: 28px;">
+                <div class="card">
+                    <h3><i class="fas fa-chart-bar"></i> Нагрузка серверов (CPU / RAM)</h3>
+                    <canvas id="loadChart"></canvas>
+                </div>
+                <div class="card">
+                    <h3><i class="fas fa-gamepad"></i> Распределение по играм</h3>
+                    <canvas id="gamesChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h3><i class="fas fa-history"></i> Последние события</h3>
+                <div id="recent-logs"></div>
+            </div>
+        </div>
+
+        <!-- Servers -->
+        <div id="servers" class="section">
+            <div class="topbar">
+                <h1>Серверы</h1>
+                <button class="btn btn-primary" onclick="openServerModal()" ${!canEdit() ? 'disabled style="opacity:0.5;cursor:not-allowed"' : ''}><i class="fas fa-plus"></i> Добавить сервер</button>
+            </div>
+            <div class="filters">
+                <input type="text" class="search-box" placeholder="Поиск по названию, IP или игре..." id="server-search" oninput="renderServers()">
+                <select id="server-status-filter" onchange="renderServers()" style="padding:12px; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:12px;">
+                    <option value="">Все статусы</option>
+                    <option value="online">Online</option>
+                    <option value="offline">Offline</option>
+                    <option value="maintenance">Maintenance</option>
+                    <option value="error">Error</option>
+                </select>
+            </div>
+            <div class="server-grid" id="servers-grid"></div>
+        </div>
+
+        <!-- Games -->
+        <div id="games" class="section">
+            <div class="topbar">
+                <h1>Поддерживаемые игры</h1>
+                <button class="btn btn-primary" onclick="openGameModal()" ${!isAdmin() ? 'disabled style="opacity:0.5;cursor:not-allowed"' : ''}><i class="fas fa-plus"></i> Добавить игру</button>
+            </div>
+            <div class="card"><table id="games-table"><thead><tr><th>Название</th><th>Жанр</th><th>Версия</th><th>Серверов</th><th>Игроков</th><th>Действия</th></tr></thead><tbody></tbody></table></div>
+        </div>
+
+        <!-- Configs - полностью переделано -->
+        <div id="configs" class="section">
+            <div class="topbar"><h1>Конфигурации серверов</h1></div>
+            <div class="config-layout">
+                <div class="card" style="margin:0; height: fit-content;">
+                    <h3>Выберите сервер</h3>
+                    <select id="config-server-select" onchange="loadConfig()" style="width:100%; padding:12px; background:#0b0f19; border:1px solid var(--border); color:var(--text); border-radius:10px; margin-bottom:16px;"></select>
+                    <div style="font-size:0.85rem; color:var(--text-muted);">Выберите сервер для редактирования конфигурации</div>
+                </div>
+                <div>
+                    <div class="tabs">
+                        <div class="tab active" onclick="switchConfigTab('edit')">Редактор</div>
+                        <div class="tab" onclick="switchConfigTab('preview')">Предпросмотр</div>
+                        <div class="tab" onclick="switchConfigTab('templates')">Шаблоны</div>
+                        <div class="tab" onclick="switchConfigTab('variables')">Переменные</div>
+                        <div class="tab" onclick="switchConfigTab('history')">История</div>
+                    </div>
+                    <div id="config-edit" class="card" style="margin:0;">
+                        <div class="form-group"><label>Конфигурационный файл (server.cfg / config)</label><textarea id="config-text" rows="18" style="font-family:monospace; font-size:0.95rem; line-height:1.5;"></textarea></div>
+                        <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                            <button class="btn btn-primary" onclick="saveConfig()"><i class="fas fa-save"></i> Сохранить</button>
+                            <button class="btn btn-secondary" onclick="exportConfig()">Экспорт</button>
+                            <button class="btn btn-secondary" onclick="formatConfig()">Форматировать</button>
+                        </div>
+                    </div>
+                    <div id="config-preview" class="card" style="display:none; margin:0;">
+                        <h3>Предпросмотр</h3>
+                        <pre id="config-preview-content" style="background:#0b0f19; padding:20px; border-radius:12px; overflow:auto; font-family:monospace; white-space:pre-wrap;"></pre>
+                    </div>
+                    <div id="config-templates" class="card" style="display:none; margin:0;">
+                        <h3>Готовые шаблоны</h3>
+                        <div class="template-item" onclick="applyTemplate('cs2')">CS2 Competitive (базовый)</div>
+                        <div class="template-item" onclick="applyTemplate('minecraft')">Minecraft Survival</div>
+                        <div class="template-item" onclick="applyTemplate('rust')">Rust Vanilla</div>
+                        <div class="template-item" onclick="applyTemplate('empty')">Пустой шаблон</div>
+                    </div>
+                    <div id="config-variables" class="card" style="display:none; margin:0;">
+                        <h3>Переменные окружения / параметры</h3>
+                        <p style="color:var(--text-muted); margin-bottom:16px;">Полезные переменные для конфигурации:</p>
+                        <div style="background:#0b0f19; padding:16px; border-radius:10px; font-family:monospace; font-size:0.9rem; line-height:1.6;">
+                            hostname — название сервера<br>
+                            sv_password — пароль<br>
+                            rcon_password — RCON<br>
+                            maxplayers — макс. игроков<br>
+                            tickrate — тикрейт (CS2)
+                        </div>
+                    </div>
+                    <div id="config-history" class="card" style="display:none; margin:0;">
+                        <h3>История изменений</h3>
+                        <p style="color:var(--text-muted);">В полной версии с бэкендом здесь будет история всех изменений конфигураций с возможностью отката.</p>
+                        <div id="config-history-list" style="margin-top:16px;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Users - красивые карточки -->
+        <div id="users" class="section">
+            <div class="topbar">
+                <h1>Пользователи системы</h1>
+                <button class="btn btn-primary" onclick="openUserModal()" ${!canManageUsers() ? 'disabled style="opacity:0.5;cursor:not-allowed"' : ''}><i class="fas fa-user-plus"></i> Добавить</button>
+            </div>
+            <div class="users-grid" id="users-grid"></div>
+        </div>
+
+        <!-- Logs -->
+        <div id="logs" class="section">
+            <div class="topbar">
+                <h1>Журнал событий</h1>
+                <div style="display:flex; gap:12px; flex-wrap:wrap;">
+                    <input type="text" class="search-box" placeholder="Фильтр по сообщению..." id="log-filter" oninput="renderLogs()">
+                    <select id="log-level-filter" onchange="renderLogs()" style="padding:12px; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:12px;">
+                        <option value="">Все уровни</option>
+                        <option value="info">Info</option>
+                        <option value="warn">Warn</option>
+                        <option value="error">Error</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="clearLogs()">Очистить</button>
+                </div>
+            </div>
+            <div class="card" id="logs-container" style="max-height:700px; overflow-y:auto;"></div>
+        </div>
+
+        <!-- Monitoring - исправлено -->
+        <div id="monitoring" class="section">
+            <div class="topbar"><h1>Детальный мониторинг</h1></div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 28px; margin-bottom:28px;">
+                <div class="card"><h3><i class="fas fa-users"></i> Онлайн игроков</h3><canvas id="playersChart"></canvas></div>
+                <div class="card"><h3><i class="fas fa-microchip"></i> Использование ресурсов</h3><canvas id="resourcesChart"></canvas></div>
+            </div>
+            <div class="card"><h3><i class="fas fa-chart-line"></i> Загрузка по серверам (24ч)</h3><canvas id="load24h"></canvas></div>
+            <div class="card" style="margin-top:28px;"><h3>Сводка по серверам</h3><div id="monitoring-summary"></div></div>
+        </div>
+
+        <!-- Alerts -->
+        <div id="alerts" class="section">
+            <div class="topbar"><h1>Алерты и уведомления</h1></div>
+            <div class="filters">
+                <select id="alert-filter" onchange="renderAlerts()" style="padding:12px; background:var(--card); border:1px solid var(--border); color:var(--text); border-radius:12px;">
+                    <option value="">Все уровни</option>
+                    <option value="critical">Critical</option>
+                    <option value="warning">Warning</option>
+                    <option value="info">Info</option>
+                </select>
+                <button class="btn btn-secondary btn-sm" onclick="acknowledgeAll()">Подтвердить все</button>
+            </div>
+            <div id="alerts-list"></div>
+        </div>
+
+        <!-- Reports -->
+        <div id="reports" class="section">
+            <div class="topbar"><h1>Отчёты</h1></div>
+            <div class="card">
+                <h3>Проблемные серверы</h3>
+                <div id="report-problems"></div>
+            </div>
+            <div class="card">
+                <h3>Топ по нагрузке (CPU)</h3>
+                <div id="report-top-load"></div>
+            </div>
+            <div class="card">
+                <h3>История изменений</h3>
+                <div id="report-history"></div>
+            </div>
+        </div>
+
+        <!-- Settings - расширенные -->
+        <div id="settings" class="section">
+            <div class="topbar"><h1>Настройки системы</h1></div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchSettingsTab('general')">Общие</div>
+                <div class="tab" onclick="switchSettingsTab('notifications')">Уведомления</div>
+                <div class="tab" onclick="switchSettingsTab('appearance')">Внешний вид</div>
+                <div class="tab" onclick="switchSettingsTab('security')">Безопасность</div>
+                <div class="tab" onclick="switchSettingsTab('data')">Данные</div>
+            </div>
+            <div id="settings-general" class="card">
+                <h3>Общие настройки</h3>
+                <div class="form-group"><label>Название организации</label><input value="GameHost Pro" id="set-org"></div>
+                <div class="form-group"><label>Часовой пояс</label><select id="set-tz"><option>Europe/Moscow</option><option>UTC</option><option>Europe/London</option><option>America/New_York</option></select></div>
+                <div class="form-group"><label>Язык интерфейса</label><select id="set-lang" onchange="changeLanguage(this.value)"><option value="ru">Русский</option><option value="en">English</option></select></div>
+                <button class="btn btn-primary" onclick="showToast('Настройки сохранены')">Сохранить</button>
+            </div>
+            <div id="settings-notifications" class="card" style="display:none;">
+                <h3>Уведомления</h3>
+                <div class="form-group"><label><input type="checkbox" checked> Email при критических алертах</label></div>
+                <div class="form-group"><label><input type="checkbox" checked> Уведомления в браузере</label></div>
+                <div class="form-group"><label><input type="checkbox"> Telegram-бот интеграция</label></div>
+                <button class="btn btn-primary" onclick="showToast('Настройки уведомлений сохранены')">Сохранить</button>
+            </div>
+            <div id="settings-appearance" class="card" style="display:none;">
+                <h3>Внешний вид</h3>
+                <div class="form-group"><label>Акцентный цвет</label><input type="color" value="#06b6d4" style="height:50px; padding:4px;"></div>
+                <div class="form-group"><label><input type="checkbox" checked> Компактный режим сайдбара</label></div>
+                <button class="btn btn-primary" onclick="showToast('Внешний вид обновлён')">Применить</button>
+            </div>
+            <div id="settings-security" class="card" style="display:none;">
+                <h3>Безопасность</h3>
+                <div class="form-group"><label>Двухфакторная аутентификация</label><select><option>Отключена</option><option>Включена (демо)</option></select></div>
+                <div class="form-group"><label>Сессия (часы)</label><input type="number" value="24"></div>
+                <button class="btn btn-primary" onclick="showToast('Настройки безопасности сохранены')">Сохранить</button>
+            </div>
+            <div id="settings-data" class="card" style="display:none;">
+                <h3>Управление данными</h3>
+                <button class="btn btn-secondary" onclick="exportAllData()"><i class="fas fa-download"></i> Экспорт всех данных (JSON)</button>
+                <button class="btn btn-secondary" onclick="clearAllData()" style="margin-left:10px;"><i class="fas fa-redo"></i> Сбросить демо-данные</button>
+                <p style="color:var(--text-muted); margin-top:16px; font-size:0.9rem;">Все данные хранятся локально в браузере (localStorage).</p>
+            </div>
+        </div>
+
+        <!-- Profile -->
+        <div id="profile" class="section">
+            <div class="topbar"><h1>Мой профиль</h1></div>
+            <div class="profile-header">
+                <div style="position:relative;">
+                    <div class="profile-avatar" id="profile-avatar" style="background-size:cover; background-position:center;">A</div>
+                    <input type="file" id="photo-input" accept="image/*" style="display:none" onchange="uploadPhoto(this)">
+                    <button class="btn btn-sm btn-secondary" style="margin-top:10px; width:100%;" onclick="document.getElementById('photo-input').click()">
+                        <i class="fas fa-camera"></i> Изменить фото
+                    </button>
+                </div>
+                <div>
+                    <h2 id="profile-name" style="font-size:2rem; margin-bottom:6px;">admin</h2>
+                    <div id="profile-role" class="badge" style="font-size:0.9rem;">Администратор</div>
+                    <div style="margin-top:12px; color:var(--text-muted);" id="profile-email">admin@gameserver.local</div>
+                    <div style="margin-top:6px; color:var(--text-muted); font-size:0.9rem;">Последний вход: <span id="profile-last">—</span></div>
+                </div>
+            </div>
+            <div style="display:grid; grid-template-columns: 1fr 1fr; gap:28px;">
+                <div class="card">
+                    <h3>Личные данные</h3>
+                    <div class="form-group"><label>Логин</label><input id="profile-login" value="admin"></div>
+                    <div class="form-group"><label>Email</label><input id="profile-email-input" value="admin@gameserver.local"></div>
+                    <div class="form-group"><label>О себе</label><textarea rows="3" placeholder="Кратко о себе..."></textarea></div>
+                    <button class="btn btn-primary" onclick="saveProfile()">Сохранить</button>
+                </div>
+                <div class="card">
+                    <h3>Безопасность</h3>
+                    <div class="form-group"><label>Новый пароль</label><input type="password" placeholder="••••••••"></div>
+                    <div class="form-group"><label>Подтверждение</label><input type="password" placeholder="••••••••"></div>
+                    <button class="btn btn-secondary" onclick="showToast('Пароль изменён (демо)')">Сменить пароль</button>
+                    <hr style="border:none; border-top:1px solid var(--border); margin:20px 0;">
+                    <button class="btn btn-danger" onclick="logout()">Выйти из аккаунта</button>
+                </div>
+            </div>
+            <div class="card">
+                <h3>Моя активность</h3>
+                <div id="profile-activity"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal">
+        <div class="modal-content" style="width:420px;">
+            <h2 id="auth-title">Вход</h2>
+            <div id="login-form">
+                <div class="form-group"><label>Логин</label><input id="auth-login" placeholder="admin"></div>
+                <div class="form-group"><label>Пароль</label><input id="auth-pass" type="password" placeholder="••••••"></div>
+                <button class="btn btn-primary" style="width:100%" onclick="doLogin()">Войти</button>
+                <div style="text-align:center; margin-top:16px; color:var(--text-muted);">Нет аккаунта? <a href="#" onclick="switchAuth('register')" style="color:var(--accent)">Зарегистрироваться</a></div>
+            </div>
+            <div id="register-form" style="display:none;">
+                <div class="form-group"><label>Логин</label><input id="reg-login"></div>
+                <div class="form-group"><label>Email</label><input id="reg-email" type="email"></div>
+                <div class="form-group"><label>Пароль</label><input id="reg-pass" type="password"></div>
+                <div class="form-group"><label>Роль</label>
+                    <select id="reg-role">
+                        <option>Оператор</option>
+                        <option>Наблюдатель</option>
+                        <option>Администратор</option>
+                    </select>
+                </div>
+                <button class="btn btn-primary" style="width:100%" onclick="doRegister()">Зарегистрироваться</button>
+                <div style="text-align:center; margin-top:16px; color:var(--text-muted);">Уже есть аккаунт? <a href="#" onclick="switchAuth('login')" style="color:var(--accent)">Войти</a></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Server Modal -->
+    <div id="serverModal" class="modal">
+        <div class="modal-content">
+            <h2>Сервер</h2>
+            <div class="form-group"><label>Название</label><input id="srv-name" placeholder="CS2 Competitive #1"></div>
+            <div class="form-group"><label>Игра</label>
+                <select id="srv-game" onchange="toggleCustomGame()"></select>
+                <input id="srv-game-custom" placeholder="Или введите свою игру" style="margin-top:8px; display:none;">
+            </div>
+            <div class="form-group"><label>IP</label><input id="srv-ip" placeholder="185.12.34.10"></div>
+            <div class="form-group"><label>Порт</label><input id="srv-port" type="number" value="27015"></div>
+            <div class="form-group"><label>Макс. игроков</label><input id="srv-max" type="number" value="32"></div>
+            <div class="form-group"><label>Регион</label>
+                <select id="srv-region">
+                    <option>EU-Central</option>
+                    <option>EU-West</option>
+                    <option>EU-North</option>
+                    <option>RU-Moscow</option>
+                    <option>RU-SPB</option>
+                    <option>US-East</option>
+                    <option>US-West</option>
+                    <option>US-Central</option>
+                    <option>Asia-Singapore</option>
+                    <option>Asia-Tokyo</option>
+                    <option>Asia-HongKong</option>
+                    <option>Brazil</option>
+                    <option>Australia</option>
+                    <option>Canada</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="saveServer()">Сохранить</button>
+            <button class="btn btn-secondary" onclick="closeModals()" style="margin-left:10px;">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Game Modal -->
+    <div id="gameModal" class="modal">
+        <div class="modal-content">
+            <h2>Игра</h2>
+            <div class="form-group"><label>Название</label><input id="game-name"></div>
+            <div class="form-group"><label>Жанр</label><input id="game-genre" placeholder="FPS, Sandbox, Survival..."></div>
+            <div class="form-group"><label>Версия</label><input id="game-version"></div>
+            <button class="btn btn-primary" onclick="saveGame()">Сохранить</button>
+            <button class="btn btn-secondary" onclick="closeModals()">Отмена</button>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal">
+        <div class="modal-content">
+            <h2>Пользователь</h2>
+            <div class="form-group"><label>Логин</label><input id="user-login"></div>
+            <div class="form-group"><label>Email</label><input id="user-email"></div>
+            <div class="form-group"><label>Роль</label>
+                <select id="user-role">
+                    <option>Администратор</option>
+                    <option>Оператор</option>
+                    <option>Наблюдатель</option>
+                </select>
+            </div>
+            <button class="btn btn-primary" onclick="saveUser()">Сохранить</button>
+            <button class="btn btn-secondary" onclick="closeModals()">Отмена</button>
+        </div>
+    </div>
+
+    <script>
+        let data = {
+            games: [
+                { id: 1, name: "Counter-Strike 2", genre: "FPS", version: "1.0.0.5" },
+                { id: 2, name: "Minecraft", genre: "Sandbox", version: "1.21.1" },
+                { id: 3, name: "Rust", genre: "Survival", version: "2025.11" },
+                { id: 4, name: "Team Fortress 2", genre: "FPS", version: "1.0" },
+                { id: 5, name: "ARK: Survival", genre: "Survival", version: "1.0" }
+            ],
+            servers: [
+                { id: 1, name: "CS2 Competitive #1", gameId: 1, customGame: null, ip: "185.12.34.10", port: 27015, status: "online", players: 18, max: 32, region: "EU-Central", config: 'hostname "CS2 Pro Server"\nsv_password ""\nrcon_password "secret123"\ntickrate 128\n', cpu: 45, ram: 62, ping: 24 },
+                { id: 2, name: "Minecraft Survival", gameId: 2, customGame: null, ip: "185.12.34.11", port: 25565, status: "online", players: 24, max: 50, region: "EU-West", config: "motd=Welcome to Survival\nmax-players=50\nlevel-name=world\n", cpu: 38, ram: 71, ping: 31 },
+                { id: 3, name: "Rust Vanilla RU", gameId: 3, customGame: null, ip: "185.12.34.12", port: 28015, status: "maintenance", players: 0, max: 100, region: "RU-Moscow", config: 'server.hostname "Rust Vanilla RU"\nserver.maxplayers 100\n', cpu: 12, ram: 28, ping: 18 },
+                { id: 4, name: "TF2 Casual", gameId: 4, customGame: null, ip: "185.12.34.13", port: 27015, status: "offline", players: 0, max: 24, region: "EU-Central", config: 'hostname "TF2 Casual"\n', cpu: 0, ram: 5, ping: 999 },
+                { id: 5, name: "ARK PvP", gameId: 5, customGame: null, ip: "185.12.34.14", port: 7777, status: "error", players: 0, max: 40, region: "US-East", config: "SessionName=ARK PvP\nMaxPlayers=40\n", cpu: 67, ram: 84, ping: 145 }
+            ],
+            users: [
+                { id: 1, login: "admin", email: "admin@gameserver.local", role: "Администратор", lastLogin: "2026-11-17 21:30", active: true, password: "admin", assignedServers: [1,2,3,4,5] },
+                { id: 2, login: "operator1", email: "op@gameserver.local", role: "Оператор", lastLogin: "2026-11-17 18:15", active: true, password: "op", assignedServers: [1,2] },
+                { id: 3, login: "viewer", email: "view@gameserver.local", role: "Наблюдатель", lastLogin: "2026-11-16 22:40", active: true, password: "view", assignedServers: [] },
+                { id: 4, login: "operator2", email: "op2@gameserver.local", role: "Оператор", lastLogin: "2026-11-15 14:20", active: false, password: "op2", assignedServers: [3] }
+            ],
+            logs: [
+                { time: "2026-11-17 22:15:12", level: "info", msg: "Сервер CS2 Competitive #1 запущен" },
+                { time: "2026-11-17 22:10:45", level: "warn", msg: "Высокая нагрузка CPU на ARK PvP (87%)" },
+                { time: "2026-11-17 22:05:20", level: "info", msg: "Пользователь admin изменил конфигурацию Minecraft Survival" },
+                { time: "2026-11-17 21:58:01", level: "error", msg: "Ошибка подключения к серверу TF2 Casual — timeout" },
+                { time: "2026-11-17 21:45:15", level: "info", msg: "Автоматический бэкап конфигураций выполнен успешно" },
+                { time: "2026-11-17 21:30:33", level: "warn", msg: "Rust Vanilla RU переведён в режим обслуживания" },
+                { time: "2026-11-17 20:12:08", level: "info", msg: "Новый пользователь operator2 добавлен" }
+            ],
+            alerts: [
+                { id: 1, level: "critical", msg: "Сервер TF2 Casual не отвечает более 2 часов", time: "21:58", acknowledged: false },
+                { id: 2, level: "warning", msg: "Высокая нагрузка RAM на ARK PvP (84%)", time: "22:10", acknowledged: false },
+                { id: 3, level: "info", msg: "Плановое обслуживание Rust Vanilla RU", time: "21:30", acknowledged: false }
+            ]
+        };
+
+        let currentUser = null;
+        let charts = {};
+
+        if (localStorage.getItem('gsm_pro_data_v2')) {
+            try { data = JSON.parse(localStorage.getItem('gsm_pro_data_v2')); } catch(e) {}
+        }
+        if (localStorage.getItem('gsm_current_user')) {
+            try { currentUser = JSON.parse(localStorage.getItem('gsm_current_user')); } catch(e) {}
+        }
+
+        function saveData() { localStorage.setItem('gsm_pro_data_v2', JSON.stringify(data)); }
+
+        // Система переводов
+        const translations = {
+            ru: {
+                dashboard: "Дашборд", servers: "Серверы", games: "Игры", configs: "Конфигурации",
+                users: "Пользователи", logs: "Логи", monitoring: "Мониторинг", alerts: "Алерты",
+                reports: "Отчёты", settings: "Настройки", profile: "Профиль",
+                add_server: "Добавить сервер", add_game: "Добавить игру",
+                total_servers: "Всего серверов", online: "Онлайн", players: "Игроков онлайн",
+                alerts_active: "Активных алертов", search: "Поиск...", my_profile: "Мой профиль",
+                logout: "Выйти из аккаунта", change_photo: "Изменить фото"
+            },
+            en: {
+                dashboard: "Dashboard", servers: "Servers", games: "Games", configs: "Configurations",
+                users: "Users", logs: "Logs", monitoring: "Monitoring", alerts: "Alerts",
+                reports: "Reports", settings: "Settings", profile: "Profile",
+                add_server: "Add Server", add_game: "Add Game",
+                total_servers: "Total Servers", online: "Online", players: "Players Online",
+                alerts_active: "Active Alerts", search: "Search...", my_profile: "My Profile",
+                logout: "Log out", change_photo: "Change Photo"
+            }
+        };
+
+        let currentLang = localStorage.getItem('gsm_lang') || 'ru';
+
+        function t(key) {
+            return translations[currentLang]?.[key] || translations.ru[key] || key;
+        }
+
+        function changeLanguage(lang) {
+            currentLang = lang;
+            localStorage.setItem('gsm_lang', lang);
+            applyTranslations();
+            showToast(lang === 'en' ? 'Language changed to English' : 'Язык изменён на русский');
+        }
+
+        function applyTranslations() {
+            const navItems = document.querySelectorAll('.nav-item span');
+            const keys = ['dashboard','servers','games','configs','users','logs','monitoring','alerts','reports','settings','profile'];
+            navItems.forEach((el, i) => { if (keys[i]) el.textContent = t(keys[i]); });
+
+            document.querySelectorAll('.topbar h1').forEach(h => {
+                const id = h.closest('.section')?.id;
+                if (id) h.textContent = t(id) || h.textContent;
+            });
+
+            const labels = document.querySelectorAll('.stat-card .label');
+            if (labels[0]) labels[0].textContent = t('total_servers');
+            if (labels[1]) labels[1].textContent = t('online');
+            if (labels[2]) labels[2].textContent = t('players');
+            if (labels[3]) labels[3].textContent = t('alerts_active');
+
+            document.querySelectorAll('#servers .btn-primary').forEach(btn => {
+                if (btn.innerHTML.includes('plus')) btn.innerHTML = `<i class="fas fa-plus"></i> ${t('add_server')}`;
+            });
+
+            document.querySelectorAll('.search-box').forEach(inp => {
+                if (inp.placeholder) inp.placeholder = t('search');
+            });
+
+            const profileTitle = document.querySelector('#profile .topbar h1');
+            if (profileTitle) profileTitle.textContent = t('my_profile');
+
+            const logoutBtn = document.querySelector('#profile .btn-danger');
+            if (logoutBtn) logoutBtn.textContent = t('logout');
+
+            const photoBtn = document.querySelector('#profile button[onclick*="photo-input"]');
+            if (photoBtn) photoBtn.innerHTML = `<i class="fas fa-camera"></i> ${t('change_photo')}`;
+        }
+
+        function uploadPhoto(input) {
+            if (!input.files || !input.files[0]) return;
+            const file = input.files[0];
+            if (file.size > 2 * 1024 * 1024) { showToast('Файл слишком большой (макс. 2 МБ)'); return; }
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+                if (currentUser) {
+                    const u = data.users.find(x => x.login === currentUser.login);
+                    if (u) u.photo = dataUrl;
+                    currentUser.photo = dataUrl;
+                    saveData();
+                    saveCurrentUser();
+                    renderProfile();
+                    updateSidebarUser();
+                    showToast(currentLang === 'en' ? 'Photo updated' : 'Фото обновлено');
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+        function saveCurrentUser() { localStorage.setItem('gsm_current_user', JSON.stringify(currentUser)); }
+
+        // Система прав
+        function getRole() {
+            return currentUser?.role || 'Наблюдатель';
+        }
+        function isAdmin() { return getRole() === 'Администратор'; }
+        function isOperatorOrAdmin() { return getRole() === 'Администратор' || getRole() === 'Оператор'; }
+        function isViewer() { return getRole() === 'Наблюдатель'; }
+
+        function canEdit() { return isOperatorOrAdmin(); }
+        function canManageUsers() { return isAdmin(); }
+        function canChangeSettings() { return isAdmin(); }
+
+        function requirePermission(checkFn, actionName = 'действие') {
+            if (!checkFn()) {
+                showToast(`Недостаточно прав для: ${actionName}`);
+                return false;
+            }
+            return true;
+        }
+
+        function showToast(msg) {
+            const t = document.createElement('div');
+            t.className = 'toast';
+            t.textContent = msg;
+            document.body.appendChild(t);
+            setTimeout(() => t.remove(), 3200);
+        }
+
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            const sec = document.getElementById(id);
+            if (sec) sec.classList.add('active');
+            const nav = Array.from(document.querySelectorAll('.nav-item')).find(n => n.getAttribute('onclick')?.includes(id));
+            if (nav) nav.classList.add('active');
+
+            setTimeout(() => {
+                if (id === 'dashboard') renderDashboard();
+                if (id === 'servers') renderServers();
+                if (id === 'games') renderGames();
+                if (id === 'configs') renderConfigSelect();
+                if (id === 'users') renderUsers();
+                if (id === 'logs') renderLogs();
+                if (id === 'monitoring') renderMonitoring();
+                if (id === 'alerts') renderAlerts();
+                if (id === 'reports') renderReports();
+                if (id === 'profile') renderProfile();
+            }, 50);
+        }
+
+        function getGameName(s) {
+            if (s.customGame) return s.customGame;
+            const g = data.games.find(g => g.id === s.gameId);
+            return g ? g.name : '—';
+        }
+
+        function renderDashboard() {
+            const online = data.servers.filter(s => s.status === 'online').length;
+            const players = data.servers.reduce((a, s) => a + (s.players || 0), 0);
+            document.getElementById('stat-servers').textContent = data.servers.length;
+            document.getElementById('stat-online').textContent = online;
+            document.getElementById('stat-players').textContent = players;
+            document.getElementById('stat-alerts').textContent = data.alerts.filter(a => !a.acknowledged).length;
+            document.getElementById('now').textContent = new Date().toLocaleString('ru-RU');
+
+            const recent = data.logs.slice(-8).reverse();
+            document.getElementById('recent-logs').innerHTML = recent.map(l => 
+                `<div class="log-entry ${l.level}"><span class="log-time">${l.time}</span><span>${l.msg}</span></div>`
+            ).join('') || '<div class="empty-state">Нет событий</div>';
+
+            // Charts
+            destroyChart('loadChart');
+            const ctx = document.getElementById('loadChart').getContext('2d');
+            charts.loadChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.servers.map(s => s.name.split(' ')[0] || s.name),
+                    datasets: [
+                        { label: 'CPU %', data: data.servers.map(s => s.cpu || 0), backgroundColor: '#06b6d4' },
+                        { label: 'RAM %', data: data.servers.map(s => s.ram || 0), backgroundColor: '#8b5cf6' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f3f4f6' } } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' }, beginAtZero: true, max: 100 } } }
+            });
+
+            destroyChart('gamesChart');
+            const gctx = document.getElementById('gamesChart').getContext('2d');
+            const gameCounts = data.games.map(g => data.servers.filter(s => s.gameId === g.id && !s.customGame).length);
+            const customCount = data.servers.filter(s => s.customGame).length;
+            charts.gamesChart = new Chart(gctx, {
+                type: 'doughnut',
+                data: { 
+                    labels: [...data.games.map(g => g.name), customCount ? 'Кастомные' : null].filter(Boolean), 
+                    datasets: [{ data: [...gameCounts, customCount].filter((_,i) => i < data.games.length || customCount), backgroundColor: ['#06b6d4','#8b5cf6','#10b981','#f59e0b','#ef4444','#ec4899'] }] 
+                },
+                options: { plugins: { legend: { labels: { color: '#f3f4f6' } } } }
+            });
+        }
+
+        function destroyChart(id) {
+            if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+        }
+
+        function renderServers() {
+            const search = (document.getElementById('server-search')?.value || '').toLowerCase();
+            const statusF = document.getElementById('server-status-filter')?.value || '';
+            const filtered = data.servers.filter(s => {
+                const gameName = getGameName(s).toLowerCase();
+                const matchSearch = s.name.toLowerCase().includes(search) || s.ip.includes(search) || gameName.includes(search);
+                const matchStatus = !statusF || s.status === statusF;
+                return matchSearch && matchStatus;
+            });
+
+            const grid = document.getElementById('servers-grid');
+            grid.innerHTML = filtered.map(s => {
+                const gameName = getGameName(s);
+                const pct = s.max ? Math.round((s.players / s.max) * 100) : 0;
+                return `<div class="server-card">
+                    <div style="display:flex; justify-content:space-between; align-items:start;">
+                        <h4>${s.name}</h4>
+                        <span class="status ${s.status}">${s.status}</span>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:0.9rem; margin:8px 0;">${gameName} • ${s.region}</div>
+                    <div style="font-family:monospace;">${s.ip}:${s.port}</div>
+                    <div style="margin:12px 0;">Игроки: <strong>${s.players}/${s.max}</strong></div>
+                    <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>
+                    <div style="display:flex; gap:8px; margin-top:16px; flex-wrap:wrap;">
+                        ${canEdit() ? `<button class="btn btn-sm btn-primary" onclick="toggleServer(${s.id})">${s.status === 'online' ? 'Остановить' : 'Запустить'}</button>` : ''}
+                        ${canEdit() ? `<button class="btn btn-sm btn-secondary" onclick="changeStatus(${s.id})">Статус</button>` : ''}
+                        ${canEdit() ? `<button class="btn btn-sm btn-secondary" onclick="editServer(${s.id})">Ред.</button>` : ''}
+                        ${isAdmin() ? `<button class="btn btn-sm btn-danger" onclick="deleteServer(${s.id})">Удалить</button>` : ''}
+                        ${!canEdit() ? `<span style="color:var(--text-muted);font-size:0.85rem;">Только просмотр</span>` : ''}
+                    </div>
+                </div>`;
+            }).join('') || '<div class="empty-state"><i class="fas fa-server"></i><p>Серверы не найдены</p></div>';
+        }
+
+        function changeStatus(id) {
+            if (!requirePermission(canEdit, 'смена статуса')) return;
+            const s = data.servers.find(x => x.id === id);
+            if (!s) return;
+            const statuses = ['online', 'offline', 'maintenance', 'error'];
+            const current = statuses.indexOf(s.status);
+            s.status = statuses[(current + 1) % statuses.length];
+            if (s.status === 'online') {
+                s.players = Math.floor(Math.random() * s.max * 0.7);
+                s.cpu = Math.floor(Math.random()*40+30);
+                s.ram = Math.floor(Math.random()*30+40);
+                s.ping = Math.floor(Math.random()*40+15);
+            } else if (s.status === 'error') {
+                s.players = 0; s.cpu = Math.floor(Math.random()*30+70); s.ping = 999;
+            } else {
+                s.players = 0; s.cpu = s.status === 'maintenance' ? 10 : 0; s.ram = 5; s.ping = s.status === 'offline' ? 999 : 20;
+            }
+            data.logs.push({ time: new Date().toLocaleString('ru-RU'), level: s.status === 'error' ? 'error' : 'info', msg: `Статус сервера ${s.name} изменён на ${s.status}` });
+            saveData();
+            renderServers();
+            showToast(`Статус: ${s.status}`);
+        }
+
+        function editServer(id) {
+            if (!requirePermission(canEdit, 'редактирование сервера')) return;
+            const s = data.servers.find(x => x.id === id);
+            if (!s) return;
+            document.getElementById('srv-name').value = s.name;
+            document.getElementById('srv-ip').value = s.ip;
+            document.getElementById('srv-port').value = s.port;
+            document.getElementById('srv-max').value = s.max;
+            document.getElementById('srv-region').value = s.region;
+            openServerModal();
+            // Store editing id
+            document.getElementById('serverModal').dataset.editId = id;
+        }
+
+        function toggleServer(id) {
+            const s = data.servers.find(x => x.id === id);
+            if (s) {
+                s.status = s.status === 'online' ? 'offline' : 'online';
+                if (s.status === 'online') {
+                    s.players = Math.floor(Math.random() * s.max * 0.7);
+                    s.cpu = Math.floor(Math.random()*40+30);
+                    s.ram = Math.floor(Math.random()*30+40);
+                } else {
+                    s.players = 0; s.cpu = 0; s.ram = 5;
+                }
+                data.logs.push({ time: new Date().toLocaleString('ru-RU'), level: 'info', msg: `Сервер ${s.name} ${s.status === 'online' ? 'запущен' : 'остановлен'}` });
+                saveData();
+                renderServers();
+                showToast(`Сервер ${s.name} ${s.status === 'online' ? 'запущен' : 'остановлен'}`);
+            }
+        }
+
+        function deleteServer(id) {
+            if (!requirePermission(isAdmin, 'удаление сервера')) return;
+            if (confirm('Удалить сервер?')) {
+                const s = data.servers.find(x => x.id === id);
+                data.servers = data.servers.filter(x => x.id !== id);
+                data.logs.push({ time: new Date().toLocaleString('ru-RU'), level: 'warn', msg: `Сервер ${s.name} удалён` });
+                saveData();
+                renderServers();
+                showToast('Сервер удалён');
+            }
+        }
+
+        function openServerModal() {
+            if (!requirePermission(canEdit, 'добавление сервера')) return;
+            const sel = document.getElementById('srv-game');
+            sel.innerHTML = data.games.map(g => `<option value="${g.id}">${g.name}</option>`).join('') + '<option value="custom">— Своя игра —</option>';
+            document.getElementById('srv-game-custom').style.display = 'none';
+            document.getElementById('serverModal').classList.add('show');
+        }
+
+        function toggleCustomGame() {
+            const val = document.getElementById('srv-game').value;
+            document.getElementById('srv-game-custom').style.display = val === 'custom' ? 'block' : 'none';
+        }
+
+        function saveServer() {
+            const editId = document.getElementById('serverModal').dataset.editId;
+            const gameSel = document.getElementById('srv-game').value;
+            let gameId = null, customGame = null;
+            if (gameSel === 'custom') {
+                customGame = document.getElementById('srv-game-custom').value || 'Кастомная игра';
+            } else {
+                gameId = parseInt(gameSel);
+            }
+            const payload = {
+                name: document.getElementById('srv-name').value || 'Новый сервер',
+                gameId, customGame,
+                ip: document.getElementById('srv-ip').value || '127.0.0.1',
+                port: parseInt(document.getElementById('srv-port').value) || 27015,
+                max: parseInt(document.getElementById('srv-max').value) || 32,
+                region: document.getElementById('srv-region').value
+            };
+            if (editId) {
+                const s = data.servers.find(x => x.id === parseInt(editId));
+                if (s) {
+                    Object.assign(s, payload);
+                    data.logs.push({ time: new Date().toLocaleString('ru-RU'), level: 'info', msg: `Сервер ${s.name} отредактирован` });
+                    showToast('Сервер обновлён');
+                }
+                delete document.getElementById('serverModal').dataset.editId;
+            } else {
+                const newId = Math.max(...data.servers.map(s => s.id), 0) + 1;
+                data.servers.push({
+                    id: newId, ...payload,
+                    status: 'offline', players: 0, cpu: 0, ram: 0, ping: 0,
+                    config: '// Новая конфигурация\n'
+                });
+                data.logs.push({ time: new Date().toLocaleString('ru-RU'), level: 'info', msg: `Добавлен сервер ${payload.name}` });
+                showToast('Сервер добавлен');
+            }
+            saveData();
+            closeModals();
+            renderServers();
+        }
+
+        function renderGames() {
+            const tbody = document.querySelector('#games-table tbody');
+            tbody.innerHTML = data.games.map(g => {
+                const servers = data.servers.filter(s => s.gameId === g.id && !s.customGame);
+                const players = servers.reduce((a,s) => a + (s.players||0), 0);
+                return `<tr><td>${g.name}</td><td>${g.genre}</td><td>${g.version}</td><td>${servers.length}</td><td>${players}</td>
+                    <td>${isAdmin() ? `<button class="btn btn-sm btn-danger" onclick="deleteGame(${g.id})">Удалить</button>` : '—'}</td></tr>`;
+            }).join('');
+        }
+
+        function openGameModal() { document.getElementById('gameModal').classList.add('show'); }
+        function saveGame() {
+            const newId = Math.max(...data.games.map(g => g.id), 0) + 1;
+            data.games.push({
+                id: newId,
+                name: document.getElementById('game-name').value || 'Новая игра',
+                genre: document.getElementById('game-genre').value || '—',
+                version: document.getElementById('game-version').value || '1.0'
+            });
+            saveData();
+            closeModals();
+            renderGames();
+            showToast('Игра добавлена');
+        }
+        function deleteGame(id) {
+            if (!requirePermission(isAdmin, 'удаление игры')) return;
+            if (confirm('Удалить игру?')) {
+                data.games = data.games.filter(g => g.id !== id);
+                saveData();
+                renderGames();
+            }
+        }
+
+        function renderConfigSelect() {
+            const sel = document.getElementById('config-server-select');
+            sel.innerHTML = data.servers.map(s => `<option value="${s.id}">${s.name} (${getGameName(s)})</option>`).join('');
+            loadConfig();
+        }
+        function loadConfig() {
+            const id = parseInt(document.getElementById('config-server-select').value);
+            const s = data.servers.find(x => x.id === id);
+            document.getElementById('config-text').value = s ? s.config : '';
+            updatePreview();
+        }
+        function updatePreview() {
+            const text = document.getElementById('config-text').value;
+            document.getElementById('config-preview-content').textContent = text || '(пусто)';
+        }
+        function saveConfig() {
+            if (!requirePermission(canEdit, 'изменение конфигурации')) return;
+            const id = parseInt(document.getElementById('config-server-select').value);
+            const s = data.servers.find(x => x.id === id);
+            if (s) {
+                const text = document.getElementById('config-text').value;
+                // Простая проверка типа (демо)
+                if (text.length > 10000) { showToast('Конфиг слишком большой'); return; }
+                s.config = text;
+                data.logs.push({ time: new Date().toLocaleString('ru-RU'), level: 'info', msg: `Изменена конфигурация сервера ${s.name}` });
+                saveData();
+                showToast('Конфигурация сохранена (в одной транзакции)');
+            }
+        }
+        function exportConfig() {
+            const text = document.getElementById('config-text').value;
+            const blob = new Blob([text], {type: 'text/plain'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'server.cfg';
+            a.click();
+        }
+        function formatConfig() {
+            let text = document.getElementById('config-text').value;
+            text = text.split('\n').map(l => l.trim()).filter(l => l).join('\n');
+            document.getElementById('config-text').value = text;
+            showToast('Форматирование применено');
+        }
+        function applyTemplate(type) {
+            const templates = {
+                cs2: 'hostname "CS2 Server"\nsv_password ""\nrcon_password "changeme"\ntickrate 128\nmp_maxrounds 30\n',
+                minecraft: 'motd=Welcome!\nmax-players=50\nlevel-name=world\ngamemode=survival\n',
+                rust: 'server.hostname "Rust Server"\nserver.maxplayers 100\nserver.identity "rust"\n',
+                empty: '// Конфигурация\n'
+            };
+            document.getElementById('config-text').value = templates[type] || '';
+            switchConfigTab('edit');
+            showToast('Шаблон применён');
+        }
+        function switchConfigTab(tab) {
+            document.querySelectorAll('#configs .tab').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            ['edit','preview','templates','variables','history'].forEach(t => {
+                document.getElementById('config-' + t).style.display = t === tab ? 'block' : 'none';
+            });
+            if (tab === 'preview') updatePreview();
+        }
+
+        function renderUsers() {
+            const grid = document.getElementById('users-grid');
+            grid.innerHTML = data.users.map(u => {
+                const initials = u.login.slice(0,2).toUpperCase();
+                return `<div class="user-card">
+                    <div style="display:flex; align-items:center; gap:14px;">
+                        <div class="avatar">${initials}</div>
+                        <div>
+                            <div style="font-weight:700; font-size:1.1rem;">${u.login}</div>
+                            <div class="badge" style="margin-top:4px;">${u.role}</div>
+                        </div>
+                    </div>
+                    <div style="color:var(--text-muted); font-size:0.9rem;">${u.email}</div>
+                    <div style="font-size:0.85rem;">Последний вход: ${u.lastLogin}</div>
+                    <div><span class="status ${u.active ? 'online' : 'offline'}">${u.active ? 'активен' : 'неактивен'}</span></div>
+                    <button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})" ${!canManageUsers() ? 'disabled style="opacity:0.5;cursor:not-allowed"' : ''}>Удалить</button>
+                </div>`;
+            }).join('') || '<div class="empty-state">Нет пользователей</div>';
+        }
+        function openUserModal() { 
+            if (!requirePermission(canManageUsers, 'добавление пользователя')) return;
+            document.getElementById('userModal').classList.add('show'); 
+        }
+        function saveUser() {
+            const newId = Math.max(...data.users.map(u => u.id), 0) + 1;
+            data.users.push({
+                id: newId,
+                login: document.getElementById('user-login').value || 'user',
+                email: document.getElementById('user-email').value || '',
+                role: document.getElementById('user-role').value,
+                lastLogin: '—',
+                active: true,
+                password: 'user',
+                assignedServers: []
+            });
+            saveData();
+            closeModals();
+            renderUsers();
+            showToast('Пользователь добавлен');
+        }
+        function deleteUser(id) {
+            if (confirm('Удалить пользователя?')) {
+                data.users = data.users.filter(u => u.id !== id);
+                saveData();
+                renderUsers();
+            }
+        }
+
+        function renderLogs() {
+            const filter = (document.getElementById('log-filter')?.value || '').toLowerCase();
+            const level = document.getElementById('log-level-filter')?.value || '';
+            const container = document.getElementById('logs-container');
+            const filtered = data.logs.filter(l => {
+                const matchText = l.msg.toLowerCase().includes(filter);
+                const matchLevel = !level || l.level === level;
+                return matchText && matchLevel;
+            }).slice().reverse();
+            container.innerHTML = filtered.map(l => 
+                `<div class="log-entry ${l.level}"><span class="log-time">${l.time}</span><span>[${l.level.toUpperCase()}] ${l.msg}</span></div>`
+            ).join('') || '<div class="empty-state"><i class="fas fa-clipboard-list"></i><p>Нет записей</p></div>';
+        }
+        function clearLogs() {
+            if (confirm('Очистить все логи?')) {
+                data.logs = [];
+                saveData();
+                renderLogs();
+                showToast('Логи очищены');
+            }
+        }
+
+        function renderReports() {
+            // Проблемные серверы
+            const problems = data.servers.filter(s => s.status === 'error' || s.status === 'offline' || (s.cpu || 0) > 80 || (s.ram || 0) > 85 || (s.ping || 0) > 100);
+            document.getElementById('report-problems').innerHTML = problems.length ? problems.map(s => `
+                <div style="padding:12px 0; border-bottom:1px solid var(--border);">
+                    <strong>${s.name}</strong> — ${s.status} | CPU: ${s.cpu||0}% | RAM: ${s.ram||0}% | Ping: ${s.ping||0}ms
+                </div>
+            `).join('') : '<p style="color:var(--text-muted)">Проблемных серверов нет</p>';
+
+            // Топ по нагрузке
+            const top = [...data.servers].sort((a,b) => (b.cpu||0) - (a.cpu||0)).slice(0,5);
+            document.getElementById('report-top-load').innerHTML = top.map((s,i) => `
+                <div style="padding:12px 0; border-bottom:1px solid var(--border);">
+                    ${i+1}. <strong>${s.name}</strong> — CPU: ${s.cpu||0}% | RAM: ${s.ram||0}%
+                </div>
+            `).join('');
+
+            // История
+            const history = data.logs.slice(-10).reverse();
+            document.getElementById('report-history').innerHTML = history.map(l => `
+                <div class="log-entry ${l.level}"><span class="log-time">${l.time}</span><span>${l.msg}</span></div>
+            `).join('') || '<p style="color:var(--text-muted)">Нет истории</p>';
+        }
+
+        function renderMonitoring() {
+            destroyChart('playersChart');
+            const pctx = document.getElementById('playersChart').getContext('2d');
+            charts.playersChart = new Chart(pctx, {
+                type: 'line',
+                data: {
+                    labels: ['12:00', '14:00', '16:00', '18:00', '20:00', '22:00', '00:00'],
+                    datasets: [{ label: 'Игроков', data: [8, 15, 22, 35, 42, 28, 12], borderColor: '#06b6d4', tension: 0.4, fill: true, backgroundColor: 'rgba(6,182,212,0.1)' }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f3f4f6' } } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' }, beginAtZero: true } } }
+            });
+
+            destroyChart('resourcesChart');
+            const rctx = document.getElementById('resourcesChart').getContext('2d');
+            charts.resourcesChart = new Chart(rctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['CPU', 'RAM', 'Disk', 'Network'],
+                    datasets: [{ data: [45, 62, 38, 22], backgroundColor: ['#06b6d4', '#8b5cf6', '#10b981', '#f59e0b'] }]
+                },
+                options: { plugins: { legend: { labels: { color: '#f3f4f6' } } } }
+            });
+
+            destroyChart('load24h');
+            const lctx = document.getElementById('load24h').getContext('2d');
+            charts.load24h = new Chart(lctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length:12}, (_,i) => (i*2)+':00'),
+                    datasets: data.servers.slice(0,4).map((s,i) => ({
+                        label: s.name.split(' ')[0] || s.name,
+                        data: Array.from({length:12}, () => Math.floor(Math.random()*60+20)),
+                        borderColor: ['#06b6d4','#8b5cf6','#10b981','#f59e0b'][i % 4],
+                        tension: 0.3
+                    }))
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#f3f4f6' } } }, scales: { x: { ticks: { color: '#9ca3af' } }, y: { ticks: { color: '#9ca3af' }, beginAtZero: true, max: 100 } } }
+            });
+
+            const summary = document.getElementById('monitoring-summary');
+            summary.innerHTML = data.servers.map(s => `
+                <div style="display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border);">
+                    <span>${s.name}</span>
+                    <span>CPU: ${s.cpu||0}% | RAM: ${s.ram||0}% | Ping: ${s.ping||0}ms | Игроки: ${s.players}</span>
+                </div>
+            `).join('');
+        }
+
+        function renderAlerts() {
+            const filter = document.getElementById('alert-filter')?.value || '';
+            const list = document.getElementById('alerts-list');
+            const filtered = data.alerts.filter(a => !filter || a.level === filter);
+            list.innerHTML = filtered.map(a => `
+                <div class="alert-card ${a.level}">
+                    <div>
+                        <span class="status ${a.level}">${a.level}</span>
+                        <span style="margin-left:12px; font-weight:500;">${a.msg}</span>
+                        <div style="color:var(--text-muted); font-size:0.85rem; margin-top:6px;">${a.time} ${a.acknowledged ? '• подтверждено' : ''}</div>
+                    </div>
+                    ${!a.acknowledged ? `<button class="btn btn-sm btn-secondary" onclick="ackAlert(${a.id})">Подтвердить</button>` : ''}
+                </div>
+            `).join('') || '<div class="empty-state"><i class="fas fa-check-circle"></i><p>Активных алертов нет</p></div>';
+        }
+        function ackAlert(id) {
+            const a = data.alerts.find(x => x.id === id);
+            if (a) { a.acknowledged = true; saveData(); renderAlerts(); showToast('Алерт подтверждён'); }
+        }
+        function acknowledgeAll() {
+            data.alerts.forEach(a => a.acknowledged = true);
+            saveData();
+            renderAlerts();
+            showToast('Все алерты подтверждены');
+        }
+
+        function switchSettingsTab(tab) {
+            document.querySelectorAll('#settings .tab').forEach(t => t.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            ['general','notifications','appearance','security','data'].forEach(t => {
+                document.getElementById('settings-' + t).style.display = t === tab ? 'block' : 'none';
+            });
+        }
+
+        function renderProfile() {
+            if (!currentUser) { showAuth(); return; }
+            const u = data.users.find(x => x.login === currentUser.login) || currentUser;
+            const avatarEl = document.getElementById('profile-avatar');
+            if (u.photo) {
+                avatarEl.style.backgroundImage = `url(${u.photo})`;
+                avatarEl.textContent = '';
+            } else {
+                avatarEl.style.backgroundImage = 'none';
+                avatarEl.textContent = u.login.slice(0,2).toUpperCase();
+            }
+            document.getElementById('profile-name').textContent = u.login;
+            document.getElementById('profile-role').textContent = u.role;
+            document.getElementById('profile-email').textContent = u.email;
+            document.getElementById('profile-last').textContent = u.lastLogin;
+            document.getElementById('profile-login').value = u.login;
+            document.getElementById('profile-email-input').value = u.email;
+            document.getElementById('sidebar-avatar').textContent = u.login.slice(0,2).toUpperCase();
+            document.getElementById('sidebar-name').textContent = u.login;
+
+            const activity = data.logs.filter(l => l.msg.includes(u.login)).slice(-5).reverse();
+            document.getElementById('profile-activity').innerHTML = activity.map(l => 
+                `<div class="log-entry ${l.level}"><span class="log-time">${l.time}</span><span>${l.msg}</span></div>`
+            ).join('') || '<p style="color:var(--text-muted)">Нет активности</p>';
+        }
+        function saveProfile() {
+            if (!currentUser) return;
+            const u = data.users.find(x => x.login === currentUser.login);
+            if (u) {
+                u.email = document.getElementById('profile-email-input').value;
+                saveData();
+                showToast('Профиль обновлён');
+                renderProfile();
+            }
+        }
+
+        // Auth
+        function showAuth() {
+            document.getElementById('authModal').classList.add('show');
+            switchAuth('register'); // При первом заходе предлагаем регистрацию
+        }
+        function switchAuth(mode) {
+            document.getElementById('login-form').style.display = mode === 'login' ? 'block' : 'none';
+            document.getElementById('register-form').style.display = mode === 'register' ? 'block' : 'none';
+            document.getElementById('auth-title').textContent = mode === 'login' ? 'Вход' : 'Регистрация';
+        }
+        function doLogin() {
+            const login = document.getElementById('auth-login').value.trim();
+            const pass = document.getElementById('auth-pass').value;
+            const user = data.users.find(u => u.login === login && u.password === pass);
+            if (user) {
+                currentUser = { login: user.login, role: user.role, email: user.email, photo: user.photo || null };
+                user.lastLogin = new Date().toLocaleString('ru-RU');
+                saveCurrentUser();
+                saveData();
+                closeModals();
+                showToast('Добро пожаловать, ' + login);
+                updateSidebarUser();
+                showSection('dashboard');
+            } else {
+                showToast('Неверный логин или пароль');
+            }
+        }
+        function doRegister() {
+            const login = document.getElementById('reg-login').value.trim();
+            const email = document.getElementById('reg-email').value.trim();
+            const pass = document.getElementById('reg-pass').value;
+            const role = document.getElementById('reg-role').value;
+            if (!login || !pass) { showToast('Заполните логин и пароль'); return; }
+            if (data.users.some(u => u.login === login)) { showToast('Логин уже занят'); return; }
+            const newId = Math.max(...data.users.map(u => u.id), 0) + 1;
+            data.users.push({ id: newId, login, email, role, lastLogin: new Date().toLocaleString('ru-RU'), active: true, password: pass });
+            currentUser = { login, role, email, photo: null };
+            saveData();
+            saveCurrentUser();
+            closeModals();
+            showToast('Регистрация успешна! Добро пожаловать');
+            updateSidebarUser();
+            showSection('dashboard');
+        }
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('gsm_current_user');
+            showToast('Вы вышли');
+            showAuth();
+        }
+        function updateSidebarUser() {
+            if (currentUser) {
+                const av = document.getElementById('sidebar-avatar');
+                if (currentUser.photo) {
+                    av.style.backgroundImage = `url(${currentUser.photo})`;
+                    av.style.backgroundSize = 'cover';
+                    av.textContent = '';
+                } else {
+                    av.style.backgroundImage = 'none';
+                    av.textContent = currentUser.login.slice(0,2).toUpperCase();
+                }
+                document.getElementById('sidebar-name').textContent = currentUser.login;
+            } else {
+                document.getElementById('sidebar-avatar').textContent = '?';
+                document.getElementById('sidebar-name').textContent = 'Гость';
+            }
+        }
+
+        function exportAllData() {
+            const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'gsm-backup.json';
+            a.click();
+            showToast('Данные экспортированы');
+        }
+        function clearAllData() {
+            if (confirm('Сбросить все данные к демо-состоянию?')) {
+                localStorage.removeItem('gsm_pro_data_v2');
+                localStorage.removeItem('gsm_current_user');
+                location.reload();
+            }
+        }
+        function closeModals() {
+            if (!currentUser && document.getElementById('authModal').classList.contains('show')) {
+                // Не даём закрыть окно авторизации, пока не вошли
+                return;
+            }
+            document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
+        }
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            const langSel = document.getElementById('set-lang');
+            if (langSel) langSel.value = currentLang;
+            applyTranslations();
+            updateSidebarUser();
+            if (!currentUser) {
+                showAuth();
+            } else {
+                renderDashboard();
+            }
+            setInterval(() => {
+                if (currentUser && document.getElementById('dashboard').classList.contains('active')) renderDashboard();
+            }, 20000);
+        });
+    </script>
+</body>
+</html>
